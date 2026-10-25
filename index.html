@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GintApp</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GintApp">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F6F4F9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111016" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: ruhige Daumen-Spalte auf einem Hauch Lila. Weiße Kacheln je Abend, Schwarz für Schrift,
+   Limette für Aktionen, Blaubeere für Sterne und Gewinner. Pixel-Avatare sind die Verspieltheit. */
+:root{
+  --bg:#F6F4F9; --surface:#FFFFFF; --soft:#EFECF4; --ink:#0A0A0A; --muted:#6B6775; --line:#E4E0EB;
+  --lime:#C6F432; --lime-ink:#0A0A0A; --beere:#3B3576; --beere-ink:#FFFFFF;
+  --star:#3B3576; --star-off:#DAD6E4; --danger:#C62828; --tile:#EFECF4;
+  --display:"Archivo","Arial Black","Helvetica Neue",sans-serif;
+  --body:"Geist",-apple-system,"Segoe UI",system-ui,sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --nav-h:62px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#111016; --surface:#1A1822; --soft:#24212E; --ink:#FAFAFA; --muted:#A39FAE; --line:#2E2A3A;
+  --beere:#A49EF0; --beere-ink:#111016; --star:#A49EF0; --star-off:#3A3548; --danger:#FF7B72; --tile:#2A2635;
+  color-scheme:dark } }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
+[hidden]{display:none!important}
+.wrap{max-width:620px;margin:0 auto;padding-inline:16px;padding-block:0 calc(var(--nav-h) + 96px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:22px}
+
+h1{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:2rem;line-height:1;margin:0;letter-spacing:-.02em}
+h1 i{display:inline-block;width:.42em;height:.42em;border-radius:50%;background:var(--lime);margin-left:.08em;vertical-align:.05em}
+h2{font-family:var(--display);font-weight:800;font-stretch:112%;font-size:1.3rem;margin:0;line-height:1.15;letter-spacing:-.01em}
+h3{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.meta{color:var(--muted);font-size:.88rem;margin:2px 0 0;overflow-wrap:anywhere}
+.note{font-style:italic}
+
+header{max-width:620px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header .sub{margin:6px 0 0;color:var(--muted);font-size:.88rem;font-variant-numeric:tabular-nums}
+.kopf-rechts{display:flex;align-items:center;gap:8px}
+
+button{font:inherit;font-weight:600;border-radius:999px;border:0;background:var(--soft);color:var(--ink);
+  min-height:44px;padding:0 16px;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.97)}
+button.primary{background:var(--lime);color:var(--lime-ink)}
+button.danger{color:var(--danger);background:transparent;border:1px solid var(--danger)}
+button.link{background:none;color:var(--muted);text-decoration:underline;min-height:36px;padding:0 2px;font-weight:500;font-size:.85rem}
+button.klein{min-height:36px;padding:0 14px;font-size:.85rem}
+button:disabled{opacity:.4}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.rund{width:44px;padding:0;flex:none;font-size:1.15rem;line-height:1}
+.ich-knopf{width:44px;height:44px;padding:0;background:none}
+
+/* Pixel-Avatare */
+.ava{display:inline-block;flex:none;background:var(--tile);border-radius:28%;overflow:hidden;line-height:0;vertical-align:middle}
+.ava svg{width:100%;height:100%;display:block}
+
+/* Startbildschirm */
+#gate,#code-gate{max-width:620px;margin:0 auto;padding:calc(48px + env(safe-area-inset-top,0px)) 16px 48px;display:flex;flex-direction:column;gap:24px}
+#gate h1{font-size:2.6rem}
+.gate-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.gate-grid button{height:auto;min-height:0;border-radius:22px;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:1.05rem}
+.gate-grid button:last-child:nth-child(odd){grid-column:1/-1}
+
+/* Abende */
+.info{background:var(--soft);border-radius:16px;padding:0 14px}
+.info summary{cursor:pointer;font-weight:600;min-height:46px;display:flex;align-items:center;list-style:none}
+.info summary::-webkit-details-marker{display:none}
+.info summary::after{content:"+";margin-left:auto;font-size:1.2rem}
+.info[open] summary::after{content:"–"}
+.info p{margin:0 0 12px;font-size:.92rem}
+#liste-abende{display:flex;flex-direction:column;gap:36px}
+.abend{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
+.abend.zu{cursor:pointer}
+.abend.zu:active{transform:scale(.99)}
+.abend-kopf{display:flex;align-items:center;gap:12px;min-width:0}
+.titel{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;font-family:var(--display);font-stretch:112%;font-size:1.2rem;line-height:1.2;letter-spacing:-.01em}
+.titel b{font-weight:800}
+.titel span{font-weight:800;color:var(--muted)}
+.pfeil{flex:none;width:36px;height:36px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:1rem;color:var(--ink);transition:transform .15s}
+button.pfeil{min-height:0;padding:0}
+.abend.auf .pfeil{transform:rotate(180deg)}
+.kurz{display:flex;flex-direction:column}
+.kurz li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.kurz li > span:first-child{min-width:0;overflow-wrap:anywhere;font-weight:500}
+.kurz li.win > span:first-child{font-weight:700}
+.kurz .wert{flex:none;font-family:var(--mono);font-weight:600}
+.kurz .wert small{color:var(--muted);font-weight:500;margin-right:2px}
+.kurz li.win .wert{color:var(--beere)}
+.fuss{display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem}
+.gastgeber{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.92rem}
+.gastgeber b{font-weight:600}
+.werkzeug{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+ul{list-style:none;margin:0;padding:0}
+ul.gins{display:flex;flex-direction:column;gap:8px}
+.gin{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;border:1px solid var(--line);background:var(--surface)}
+.gin.win{border:2px solid var(--beere);padding:11px}
+.gin-kopf{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;width:100%;text-align:left;background:none;border-radius:8px;
+  padding:0;min-height:0;color:inherit;font-weight:400}
+.gin-kopf > span:first-child{min-width:0}
+.gin-name{display:block;font-weight:600;font-size:1.05rem;overflow-wrap:anywhere}
+.punkte{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums}
+.punkte strong{font-family:var(--mono);font-weight:600;font-size:1.25rem;line-height:1.1}
+.punkte strong small{font-size:.7em;color:var(--muted);margin-right:2px}
+.punkte span{font-size:.75rem;color:var(--muted)}
+.badge{display:inline-block;white-space:nowrap;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  background:var(--beere);color:var(--beere-ink);border-radius:999px;padding:3px 8px;margin-left:6px;vertical-align:2px}
+.stimmen{display:flex;flex-wrap:wrap;gap:6px}
+.stimme{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px 2px 2px;font-size:.8rem;font-weight:600;
+  background:var(--soft);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.stimme em{font-style:normal;color:var(--star)}
+.sterne{display:flex;align-items:center}
+.sterne button{background:none;min-height:42px;width:40px;padding:0;font-size:1.6rem;line-height:1;color:var(--star-off);border-radius:8px}
+.sterne button.an{color:var(--star)}
+.sterne.fest span{font-size:1.05rem;color:var(--star-off);letter-spacing:1px}
+.sterne.fest span.an{color:var(--star)}
+.meine{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:6px}
+.meine small{color:var(--muted);font-size:.8rem;font-weight:600}
+.entscheid{background:var(--soft);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.entscheid p{margin:0;font-size:.92rem}
+.entscheid .wahl{display:flex;flex-wrap:wrap;gap:8px}
+.empty{border:1.5px dashed var(--line);border-radius:16px;padding:18px;color:var(--muted)}
+.empty strong{color:var(--ink)}
+.notice{background:var(--soft);border-radius:14px;padding:12px 14px;color:var(--muted);font-size:.9rem}
+
+/* Formulare */
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--soft);border:1px solid transparent;
+  border-radius:12px;padding:11px 12px;width:100%;min-height:46px;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--ink);outline:none}
+label,.feld{display:flex;flex-direction:column;gap:5px;font-size:.82rem;font-weight:600;color:var(--muted);min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vorschlaege{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.vorschlaege button{border-radius:0;border-bottom:1px solid var(--line);text-align:left;font-weight:500;background:none}
+.vorschlaege button:last-child{border-bottom:0}
+.vorschlaege button.neu{font-weight:600}
+.vorschlaege button.neu::before{content:"+ ";color:var(--ink)}
+.bew-zeile{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--ink);font-size:.95rem;min-height:40px}
+.bew-zeile > span{display:flex;align-items:center;gap:10px;min-width:0}
+.rechnung{font-family:var(--mono);font-size:.85rem;color:var(--ink);background:var(--soft);border-radius:10px;padding:8px 10px;font-weight:500}
+
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{background:none;height:calc(var(--nav-h) - 12px);color:var(--muted);padding:0 2px;font-size:.84rem}
+.profil-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.profil-grid button{height:auto;min-height:0;border-radius:20px;padding:14px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line)}
+.profil-grid button:last-child:nth-child(odd){grid-column:1/-1}
+.profil-grid small{color:var(--muted);font-weight:500;font-size:.78rem}
+.profil-kopf{display:flex;align-items:center;gap:16px}
+.profil-kopf h2{font-size:1.8rem}
+.kennzahlen{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kennzahl{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kennzahl strong{font-family:var(--mono);font-weight:600;font-size:1.35rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.kennzahl span{font-size:.75rem;color:var(--muted);line-height:1.2}
+.kennzahl.hervor{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.kennzahl.hervor span{color:var(--lime-ink);opacity:.75}
+.liebling{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.liebling > div{min-width:0}
+.liebling b{display:block;overflow-wrap:anywhere}
+.rank button.who{background:none;padding:0;min-height:0;text-align:left;font-weight:600;color:inherit}
+nav button[aria-current="page"]{color:var(--lime-ink);background:var(--lime)}
+#fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:6;min-height:54px;padding:0 22px;
+  background:var(--ink);color:var(--bg);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+
+dialog{border:0;border-radius:24px 24px 0 0;background:var(--bg);color:var(--ink);
+  margin:auto auto 0;width:100%;max-width:620px;max-height:92vh;max-height:92dvh;overflow:auto;
+  padding:22px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog form{display:flex;flex-direction:column;gap:12px}
+
+/* Ruhmeshalle */
+.top{display:flex;flex-direction:column}
+.top li{display:grid;grid-template-columns:2rem 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.top .platz{font-family:var(--mono);font-weight:600;color:var(--muted)}
+.top li.erster .platz{color:var(--lime-ink);background:var(--lime);border-radius:8px;text-align:center;padding:2px 0}
+.top .name{min-width:0}
+.top .name b{display:block;font-weight:600;overflow-wrap:anywhere}
+.rank{display:flex;flex-direction:column;gap:14px}
+.rank li{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;font-variant-numeric:tabular-nums;align-items:center}
+.rank .who{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.rank .zahl{color:var(--muted);font-size:.85rem}
+.bar{grid-column:2/-1;height:8px;background:var(--soft);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--lime);border-radius:4px}
+.sieger li{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.sieger li > div{min-width:0}
+.sieger b{font-weight:600;overflow-wrap:anywhere}
+.abschnitt{display:flex;flex-direction:column;gap:12px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 86px + env(safe-area-inset-bottom,0px));z-index:20;
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;max-width:calc(100vw - 32px);font-size:.9rem;text-align:center}
+@media (prefers-reduced-motion: reduce){ button:active{transform:none} }
+</style>
+</head>
+<body>
+
+<div id="code-gate" hidden>
+  <div>
+    <h1>GintApp<i></i></h1>
+    <p class="meta" style="margin-top:10px;font-size:1rem">Diese App ist nur für unsere Gin-Runde. Gib euren Gruppen-Code ein. Dein Handy merkt ihn sich.</p>
+  </div>
+  <form id="form-code" class="abschnitt" autocomplete="off">
+    <label for="code-eingabe">Gruppen-Code
+      <input id="code-eingabe" type="password" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </label>
+    <button class="primary" type="submit" id="code-knopf">Weiter</button>
+    <p class="meta" id="code-fehler" style="margin:0;color:var(--danger)" role="alert" hidden></p>
+  </form>
+</div>
+
+<div id="gate" hidden>
+  <div>
+    <h1>GintApp<i></i></h1>
+    <p class="meta" style="margin-top:10px;font-size:1rem">Wer bist du? Deine Sterne laufen dann unter deinem Namen. Dein Handy merkt sich die Auswahl.</p>
+  </div>
+  <div class="gate-grid" id="gate-grid"></div>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div>
+      <h1>GintApp<i></i></h1>
+      <p class="sub" id="zaehler">Lade Einträge …</p>
+    </div>
+    <div class="kopf-rechts">
+      <button class="rund" id="btn-neu-laden" aria-label="Aktualisieren">↻</button>
+      <button class="ich-knopf" id="btn-ich" aria-label="Person wechseln"></button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="notice" id="hinweis" hidden></div>
+
+    <section id="tab-abende" class="abschnitt" style="gap:22px">
+      <details class="info">
+        <summary>So wird gewertet</summary>
+        <p>Jede Person gibt jedem Gin 1 bis 5 Sterne. Die große Zahl am Gin ist der Durchschnitt: alle Sterne zusammengezählt und durch die Zahl der Stimmen geteilt.</p>
+        <p>Beispiel: Steffi gibt 5 Sterne, Groppi 4. Das sind 9 Sterne aus 2 Stimmen, also Ø 4,5.</p>
+        <p>Gewinner des Abends ist der Gin mit dem höchsten Durchschnitt. Liegen mehrere gleichauf, entscheidet der Gastgeber.</p>
+      </details>
+      <div id="liste-abende"></div>
+    </section>
+
+    <section id="tab-gins" class="abschnitt" hidden>
+      <label for="suche">Suchen
+        <input id="suche" type="search" placeholder="Name, Land, Stil, Person …">
+      </label>
+      <label for="sortierung">Sortieren
+        <select id="sortierung">
+          <option value="neu">Neueste zuerst</option>
+          <option value="sterne">Beste Bewertung</option>
+          <option value="name">Name A–Z</option>
+          <option value="abv">Alkoholgehalt</option>
+        </select>
+      </label>
+      <ul class="gins" id="liste-gins"></ul>
+    </section>
+
+    <section id="tab-ruhmeshalle" class="abschnitt" style="gap:34px" hidden>
+      <div class="abschnitt">
+        <div><h2>Die Besten aller Zeiten</h2><p class="meta">Top 10 nach Sterne-Schnitt über alle Abende, ab zwei Stimmen.</p></div>
+        <ul class="top" id="liste-top"></ul>
+      </div>
+      <div class="abschnitt">
+        <div><h2>Wer hat die beste Nase?</h2><p class="meta">Siege je Person und wie viele Gins sie mitgebracht hat.</p></div>
+        <ul class="rank" id="liste-rang"></ul>
+      </div>
+      <div class="abschnitt">
+        <div><h2>Gewinner der Abende</h2><p class="meta">Neueste zuerst.</p></div>
+        <ul class="sieger" id="liste-gewinner"></ul>
+        <button class="klein" id="btn-alle-sieger" hidden></button>
+      </div>
+    </section>
+
+    <section id="tab-profile" class="abschnitt" style="gap:24px" hidden>
+      <div id="profil-liste" class="abschnitt">
+        <div><h2>Profile</h2><p class="meta">Tippe auf eine Person, um ihre Gins, Bewertungen und Abende zu sehen.</p></div>
+        <div class="profil-grid" id="profil-grid"></div>
+      </div>
+      <div id="profil-detail" class="abschnitt" style="gap:24px" hidden></div>
+    </section>
+  </div>
+
+  <button id="fab">+ Neuer Abend</button>
+
+  <nav aria-label="Ansichten">
+    <button data-tab="abende">Abende</button>
+    <button data-tab="gins">Alle Gins</button>
+    <button data-tab="ruhmeshalle">Ruhmeshalle</button>
+    <button data-tab="profile">Profile</button>
+  </nav>
+</div>
+
+<dialog id="dlg-abend">
+  <form id="form-abend">
+    <h2 id="dlg-abend-titel">Neuer Abend</h2>
+    <label for="abend-datum">Datum<input id="abend-datum" type="date" required></label>
+    <label for="abend-ort">Gastgeber<select id="abend-ort" required></select></label>
+    <label for="abend-notiz">Notiz<textarea id="abend-notiz" rows="2" maxlength="400" placeholder="Motto, Tonic des Abends, besondere Vorkommnisse"></textarea></label>
+    <div class="row2"><button type="button" data-close>Abbrechen</button><button class="primary" type="submit">Speichern</button></div>
+    <button type="button" class="danger" id="abend-loeschen" hidden>Abend löschen</button>
+  </form>
+</dialog>
+
+<dialog id="dlg-gin">
+  <form id="form-gin" autocomplete="off">
+    <h2 id="dlg-gin-titel">Gin eintragen</h2>
+    <div class="feld"><label for="gin-name">Name</label>
+      <input id="gin-name" required maxlength="80" placeholder="Tippen, z. B. Monk …" autocomplete="off" autocapitalize="words">
+      <div class="vorschlaege" id="vor-name" hidden></div>
+      <span id="gin-hinweis" hidden></span>
+    </div>
+    <label for="gin-von">Mitgebracht von<select id="gin-von"></select></label>
+    <div class="feld"><label for="gin-herkunft">Herkunftsland</label>
+      <input id="gin-herkunft" maxlength="60" placeholder="Tippen, z. B. Sch …" autocomplete="off" autocapitalize="words">
+      <div class="vorschlaege" id="vor-land" hidden></div>
+    </div>
+    <div class="row2">
+      <label for="gin-stil">Stil
+        <select id="gin-stil">
+          <option value="">–</option>
+          <option>London Dry</option><option>Dry Gin</option><option>New Western</option>
+          <option>Old Tom</option><option>Navy Strength</option><option>Sloe Gin</option>
+          <option>Plymouth</option><option>Fassgelagert</option><option>Alkoholfrei</option><option>Anderer</option>
+        </select>
+      </label>
+      <label for="gin-abv">Alkohol (% vol)<input id="gin-abv" type="text" inputmode="decimal" maxlength="5" placeholder="z. B. 47"></label>
+    </div>
+    <label for="gin-notiz">Verkostungsnotiz<textarea id="gin-notiz" rows="2" maxlength="400" placeholder="Wacholder, Zitrus, welches Tonic, welche Garnitur"></textarea></label>
+    <div class="feld" id="gin-bewertungen" hidden>
+      <h3>Deine Bewertung</h3>
+      <div id="gin-meine"></div>
+      <h3 style="margin-top:8px">Die anderen</h3>
+      <div id="gin-andere" style="display:flex;flex-direction:column"></div>
+      <div class="rechnung" id="gin-rechnung" hidden></div>
+    </div>
+    <div class="row2"><button type="button" data-close>Abbrechen</button><button class="primary" type="submit">Speichern</button></div>
+    <button type="button" class="danger" id="gin-loeschen" hidden>Gin löschen</button>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="config.js"></script>
+<script>
+(function(){
+  /* Eure Mitglieder. Wer hier ergänzt wird, braucht unten in AVATARE auch eine Figur. */
+  const MITGLIEDER = ["Dési","Steffi","Basti","Gundolf","Groppi"];
+  const LAENDER = ["Deutschland","England","Schottland","Spanien","Italien","Frankreich","Niederlande","Belgien","Österreich","Schweiz","USA","Japan","Irland","Wales","Nordirland",
+    "Ägypten","Albanien","Algerien","Andorra","Angola","Argentinien","Armenien","Aserbaidschan","Äthiopien","Australien","Bahamas","Bangladesch","Barbados","Belize","Bolivien",
+    "Bosnien und Herzegowina","Botswana","Brasilien","Bulgarien","Chile","China","Costa Rica","Dänemark","Dominikanische Republik","Ecuador","El Salvador","Estland","Finnland",
+    "Georgien","Ghana","Griechenland","Guatemala","Indien","Indonesien","Island","Israel","Jamaika","Jordanien","Kambodscha","Kanada","Kap Verde","Kasachstan","Kenia","Kolumbien",
+    "Kroatien","Kuba","Lettland","Libanon","Liechtenstein","Litauen","Luxemburg","Madagaskar","Malaysia","Malta","Marokko","Mauritius","Mexiko","Moldau","Monaco","Mongolei",
+    "Montenegro","Namibia","Nepal","Neuseeland","Nigeria","Nordmazedonien","Norwegen","Panama","Paraguay","Peru","Philippinen","Polen","Portugal","Ruanda","Rumänien","Russland",
+    "Schweden","Senegal","Serbien","Singapur","Slowakei","Slowenien","Sri Lanka","Südafrika","Südkorea","Taiwan","Tansania","Thailand","Tschechien","Tunesien","Türkei","Uganda",
+    "Ukraine","Ungarn","Uruguay","Venezuela","Vereinigtes Königreich","Vietnam","Zypern"];
+
+  /* --- Pixel-Avatare: 12 × 13 Pixel, jeder Buchstabe eine Farbe, "." ist leer --- */
+  const BASIS = [
+    "............",
+    "............",
+    "...kkkkkk...",
+    "..kssssssk..",
+    ".kssssssssk.",
+    ".kssssssssk.",
+    ".ksessssesk.",
+    ".ksessssesk.",
+    ".kcssmmssck.",
+    "..kssssssk..",
+    "...kkkkkk...",
+    "..tttttttt..",
+    ".tttttttttt."];
+  const GRUNDFARBEN = { k:"#1A1A1A", e:"#1A1A1A", g:"#1A1A1A", c:"#FF9EAF", m:"#D9534F", l:"#C6F432", p:"#FF7BAC", q:"#E8457F", w:"#FFFFFF", y:"#FFD60A" };
+  const AVATARE = {
+    "Dési": { farben:{s:"#F7D7C0", h:"#2E1D13", t:"#2B2850", c:"#FF9EAF", n:"#C9A24A", o:"#F2C94C"},
+      raster:[                      /* 14 × 15: langes Haar im Zopf, rundes Gesicht */
+        "...hhhhhhh....",
+        "..hhhhhhhhhlh.",
+        ".hhhhhhhhhhhhh",
+        ".hhhhhhhhhhhhh",
+        "khhssssssshhkh",
+        "khssssssssshkh",
+        "kssesssssesskh",
+        "kssesssssesskh",
+        "kccssmsmsscckh",
+        "ksssssmssssskh",
+        ".ksssssssssk.h",
+        "..kkkkkkkkk...",
+        "..tsnsssnst...",
+        ".tttsnonsttt..",
+        "tttttsssttttt."] },
+    "Steffi": { farben:{s:"#F8D9C4", h:"#2A1E1A", g:"#AFA9BC99", t:"#B5E89A"},   /* g: durchsichtige Brille */
+      raster:[                      /* kurzes Haar, Scheitel rechts, Pony, runde Brille, lachende Augen */
+        "....hhhhhh....",
+        "...hhhhhhhh...",
+        "..hhhhhhhhhh..",
+        ".hhhhhhhhhshh.",
+        ".khhhhhhhsssk.",
+        ".khhssssssssk.",
+        ".kgggssssgggk.",
+        ".geeeggggeeeg.",
+        ".gesegssgeseg.",
+        ".kgggssssgggk.",
+        ".kccsmssmscck.",
+        "..ksssmmsssk..",
+        "...kkkkkkkk...",
+        "..tttttttttt..",
+        ".tttttttttttt."] },
+    "Basti": { farben:{s:"#ECC4A2", h:"#1E1612", n:"#DDAE8C", m:"#8C3E38", t:"#33313A"},
+      raster:[                      /* kurze Igelfrisur, hohe Stirn, birnenförmiges Gesicht */
+        "....h.hh.h....",
+        "....hhhhhh....",
+        "...hhhhhhhh...",
+        "...kssssssk...",
+        "..kssssssssk..",
+        "..kssssssssk..",
+        ".kswesssswesk.",
+        ".kseesssseesk.",
+        ".kssssnnssssk.",
+        "kccsssssssscck",
+        "kssssmssmssssk",
+        ".kssssmmssssk.",
+        "..kssssssssk..",
+        "...kkkkkkkk...",
+        "..tttttttttt.."] },
+    "Gundolf": { farben:{s:"#F6D6C2", h:"#D2C8C4", b:"#B39C90", g:"#3A3A44", u:"#9CC8EE", n:"#E4BFA8", m:"#B5615A", t:"#8B1E2B"},
+      raster:[                      /* Glatze, Metallbrille, blaue Augen, ernster Blick */
+        "..............",
+        ".....kkkk.....",
+        "...kksssskk...",
+        "..kswssssssk..",
+        ".kssssssssssk.",
+        ".kssssssssssk.",
+        ".kssbbssbbssk.",
+        ".kggggssggggk.",
+        ".kguugggguugk.",
+        ".kgssgssgssgk.",
+        ".kggggssggggk.",
+        ".kcsssmmsssck.",
+        "..kssssssssk..",
+        "...kkkkkkkk...",
+        "..tttttttttt.."] },
+    "Groppi": { farben:{s:"#F7D9C6", h:"#2B2420", x:"#8C8580", b:"#9C8579", y:"#5E4F48", g:"#AFA9BC99", m:"#C9605A", t:"#A9D3F5", C:"#E6F3FD", d:"#5C7C99"},
+      raster:[                      /* kurze Locken, grau meliert, runde durchsichtige Brille, Stoppelbart, gequetschtes Panda-Gesicht */
+        "...hh.hh.hh...",
+        "..hhxhhhhxhh..",
+        ".hxhhhxhhxhhh.",
+        ".hhsssssssshh.",
+        ".kgggssssgggk.",
+        ".gsweggggwesg.",
+        ".gseegssgeesg.",
+        ".kgggssssgggk.",
+        "kbcsssssssscbk",
+        "kbbsybbbbysbbk",
+        "kybbbbmmbbbbyk",
+        ".kbbbbyybbbbk.",
+        "..kkkkkkkkkk..",
+        "..ttCCssCCtt..",
+        ".tttttdCttttt."] }
+  };
+  const avatarSvg = {};
+  function baueAvatar(name){
+    const a = AVATARE[name]; if (!a) return "";
+    const g = (a.raster || BASIS).map(z => z.split(""));
+    Object.entries(a.zeilen || {}).forEach(([r, z]) => { g[r] = z.padEnd(12, ".").split(""); });
+    (a.seiten || []).forEach(r => { g[r][0] = "h"; g[r][1] = "h"; g[r][10] = "h"; g[r][11] = "h"; });
+    (a.pixel || []).forEach(([r, c, ch]) => { g[r][c] = ch; });
+    const farben = { ...GRUNDFARBEN, ...a.farben };
+    let rects = "";
+    g.forEach((z, y) => z.forEach((ch, x) => { if (ch !== "." && farben[ch]) rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${farben[ch]}"/>`; }));
+    return `<svg viewBox="${a.raster ? "-1 -0.4 16 16" : "-2 -2 16 16"}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+  }
+  MITGLIEDER.forEach(m => avatarSvg[m] = baueAvatar(m));
+  const avatar = (p, px) => avatarSvg[p]
+    ? `<span class="ava" style="width:${px}px;height:${px}px" title="${esc(p)}">${avatarSvg[p]}</span>`
+    : `<span class="ava" style="width:${px}px;height:${px}px;display:inline-grid;place-items:center;line-height:1;font-size:${Math.round(px*.45)}px;font-weight:700">${esc(String(p||"?").slice(0,1).toUpperCase())}</span>`;
+
+  const $ = id => document.getElementById(id);
+  const S = { profil:"", abende:[], gins:[], bewertungen:[], geladen:false, tab:"abende", abendId:null, ginId:null, ginAbend:null, ich:"", sortiert:{}, alleSieger:false, offen:new Set() };
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  const norm = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+  const datum = d => { const t = new Date(d + "T12:00:00"); return isNaN(t) ? esc(d) : t.toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"long",year:"numeric"}); };
+  const kurzDatum = d => { const t = new Date(d + "T12:00:00"); return isNaN(t) ? esc(d) : t.toLocaleDateString("de-DE",{day:"numeric",month:"short",year:"numeric"}); };
+  const zahl = v => { const n = parseFloat(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : null; };
+  const abv = v => { const n = zahl(v); return n === null ? "" : n.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1}) + " % vol"; };
+  const komma = n => n.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1});
+  const heute = () => { const n = new Date(); return new Date(n - n.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+  const stimmenWort = n => n === 1 ? "1 Stimme" : n + " Stimmen";
+  try { S.ich = localStorage.getItem("gin-ich") || ""; } catch(e){}
+  S.code = ""; try { S.code = localStorage.getItem("gin-code") || ""; } catch(e){}
+  if (!MITGLIEDER.includes(S.ich)) S.ich = "";
+
+  /* --- Verbindung zum Google Sheet (mit Vorschau-Modus ohne Google) --- */
+  const API = String(window.GINTAPP_API || "").trim();
+  const online = /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(API);
+  let demo = { abende:[], gins:[], bewertungen:[] };
+  function demoAufruf(name, a){
+    const id = () => "x" + Math.random().toString(36).slice(2,10);
+    const up = (liste, o) => { if (o.id) Object.assign(liste.find(x=>x.id===o.id), o); else liste.push({...o, id:id()}); };
+    if (name==="speichereAbend") up(demo.abende, a[0]);
+    if (name==="speichereGin") up(demo.gins, a[0]);
+    if (name==="setzeGewinner") demo.abende.find(x=>x.id===a[0]).gewinner = a[1] || "";
+    if (name==="setzeBewertung"){ demo.bewertungen = demo.bewertungen.filter(b=>!(b.ginId===a[0] && b.person===a[1])); if (a[2]>=1) demo.bewertungen.push({id:id(), ginId:a[0], person:a[1], sterne:String(a[2])}); }
+    if (name==="loescheGin"){ demo.gins = demo.gins.filter(g=>g.id!==a[0]); demo.bewertungen = demo.bewertungen.filter(b=>b.ginId!==a[0]); demo.abende.forEach(x=>{ if(x.gewinner===a[0]) x.gewinner=""; }); }
+    if (name==="loescheAbend"){ const weg = demo.gins.filter(g=>g.abendId===a[0]).map(g=>g.id); demo.bewertungen = demo.bewertungen.filter(b=>!weg.includes(b.ginId)); demo.gins = demo.gins.filter(g=>g.abendId!==a[0]); demo.abende = demo.abende.filter(x=>x.id!==a[0]); }
+    return JSON.parse(JSON.stringify(demo));
+  }
+  async function aufruf(name, ...args){
+    if (!online) return demoAufruf(name, args);
+    let antwort;
+    try {
+      // text/plain vermeidet die CORS-Vorabfrage, die Apps Script nicht beantwortet
+      antwort = await fetch(API, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+        body: JSON.stringify({ fn:name, args:[S.code, ...args] }), redirect:"follow" });
+    } catch(e) { throw new Error("Keine Verbindung zum Google Sheet. Prüfe dein Internet und versuch es noch einmal."); }
+    if (!antwort.ok) throw new Error("Das Google Sheet antwortet nicht (Fehler " + antwort.status + ").");
+    let j; try { j = await antwort.json(); } catch(e) { throw new Error("Unerwartete Antwort vom Google Sheet. Stimmt die Adresse in config.js?"); }
+    if (!j.ok) throw new Error(j.error || "Unbekannter Fehler");
+    return j.data;
+  }
+  // Aufrufe laufen nacheinander; nur die Antwort des letzten wartenden Aufrufs wird übernommen.
+  let kette = Promise.resolve(), wartend = 0;
+  function uebernehmen(d){ S.abende = d.abende || []; S.gins = d.gins || []; S.bewertungen = d.bewertungen || []; S.geladen = true; render(); }
+  function server(name, args, meldung, still){
+    wartend++;
+    if (meldung && !still) toast("Speichert …", true);
+    const p = kette.then(() => aufruf(name, ...args));
+    kette = p.catch(() => {});
+    return p.then(d => { wartend--; if (wartend === 0) uebernehmen(d); if (meldung) toast(meldung); return true; },
+      e => { wartend--;
+             if (codeFalsch(e)) { codeAbgelehnt("Der gespeicherte Code gilt nicht mehr. Bitte gib den aktuellen Code ein."); return false; }
+             toast("Fehler: " + ((e && e.message) ? e.message : "Das hat nicht geklappt."), false, 7000);
+             if (wartend === 0 && name !== "ladeDaten") server("ladeDaten", []); return false; });
+  }
+
+  const codeFalsch = e => String(e && e.message || e).includes("CODE_FALSCH");
+  function codeAbgelehnt(text){
+    S.code = ""; try { localStorage.removeItem("gin-code"); } catch(e){}
+    S.geladen = false; S.abende = []; S.gins = []; S.bewertungen = [];
+    document.querySelectorAll("dialog[open]").forEach(d => d.close());
+    $("toast").hidden = true; render();
+    const f = $("code-fehler"); f.textContent = text; f.hidden = false;
+  }
+  $("form-code").addEventListener("submit", async e => {
+    e.preventDefault();
+    const knopf = $("code-knopf"), f = $("code-fehler");
+    S.code = $("code-eingabe").value.trim(); if (!S.code) return;
+    knopf.disabled = true; knopf.textContent = "Prüfe …"; f.hidden = true;
+    try {
+      const d = await aufruf("ladeDaten");
+      try { localStorage.setItem("gin-code", S.code); } catch(err){}
+      $("code-eingabe").value = ""; uebernehmen(d);
+    } catch(err) {
+      S.code = "";
+      f.textContent = codeFalsch(err) ? "Der Code stimmt nicht." : ((err && err.message) || "Das hat nicht geklappt. Versuch es noch einmal.");
+      f.hidden = false;
+    } finally { knopf.disabled = false; knopf.textContent = "Weiter"; }
+  });
+
+  let toastT;
+  function toast(msg, bleibt, ms){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toastT); if(!bleibt) toastT=setTimeout(()=>t.hidden=true,ms||2600); }
+
+  function zeigeTab(t){
+    S.tab = t;
+    document.querySelectorAll("nav button").forEach(b => b.dataset.tab===t ? b.setAttribute("aria-current","page") : b.removeAttribute("aria-current"));
+    ["abende","gins","ruhmeshalle","profile"].forEach(n => $("tab-"+n).hidden = n!==t);
+    $("fab").hidden = t!=="abende";
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => { if (b.dataset.tab==="profile") S.profil = ""; zeigeTab(b.dataset.tab); render(); }));
+
+  /* --- Auswertung --- */
+  const abendVon = id => S.abende.find(a => a.id===id);
+  const istArchiv = a => !!a && (a.id === "archiv" || !a.datum);   // Sammelabend für Gins aus der Zeit vor der GintApp
+  let stat = new Map(), ausw = new Map();
+  function rechne(){
+    stat = new Map(); ausw = new Map();
+    S.gins.forEach(g => stat.set(g.id, {n:0, summe:0, schnitt:null, wer:[]}));
+    S.bewertungen.forEach(b => { const s = stat.get(b.ginId), n = Number(b.sterne); if (!s || !(n>=1 && n<=5)) return; s.n++; s.summe += n; s.wer.push({person:b.person, n}); });
+    stat.forEach(s => { if (s.n) s.schnitt = s.summe / s.n; s.wer.sort((a,b)=>MITGLIEDER.indexOf(a.person)-MITGLIEDER.indexOf(b.person)); });
+    S.abende.forEach(a => {
+      const gs = S.gins.filter(g => g.abendId===a.id);
+      if (!gs.length || istArchiv(a)) return ausw.set(a.id, {});
+      const bewertet = gs.filter(g => stat.get(g.id).n > 0);
+      let kandidaten = gs;
+      if (bewertet.length){ const max = Math.max(...bewertet.map(g => stat.get(g.id).schnitt)); kandidaten = bewertet.filter(g => stat.get(g.id).schnitt > max - 1e-9); }
+      if (bewertet.length && kandidaten.length===1) return ausw.set(a.id, {sieger:kandidaten[0], art:"bewertung"});
+      const wahl = kandidaten.find(g => g.id===a.gewinner);
+      if (wahl) return ausw.set(a.id, {sieger:wahl, art: bewertet.length ? "stichentscheid" : "direkt"});
+      ausw.set(a.id, {offen:true, kandidaten, gleichstand: bewertet.length>0});
+    });
+  }
+  const istSieger = g => ausw.get(g.abendId)?.sieger?.id === g.id;
+  const meine = (ginId, person) => { const b = S.bewertungen.find(x => x.ginId===ginId && x.person===person); return b ? Number(b.sterne) : 0; };
+  const sterneHtml = ginId => { const w = meine(ginId, S.ich);
+    return `<span class="sterne" role="group" aria-label="Deine Bewertung">${[1,2,3,4,5].map(n =>
+      `<button type="button" class="${n<=w?"an":""}" data-act="stern" data-gin="${esc(ginId)}" data-n="${n}" aria-label="${n} ${n===1?"Stern":"Sterne"}" aria-pressed="${n===w}">★</button>`).join("")}</span>`; };
+  const festeSterne = n => `<span class="sterne fest" aria-label="${n} von 5 Sternen">${[1,2,3,4,5].map(i=>`<span class="${i<=n?"an":""}">★</span>`).join("")}</span>`;
+  const punkteHtml = g => { const s = stat.get(g.id);
+    return s && s.n ? `<span class="punkte"><strong><small>Ø</small>${komma(s.schnitt)}</strong><span>${stimmenWort(s.n)}</span></span>`
+                    : `<span class="punkte"><span>noch keine Stimme</span></span>`; };
+  const ginMeta = g => [g.herkunft, g.stil, abv(g.abv)].filter(Boolean).map(esc).join(" · ");
+
+  function ginKarte(g, opt){
+    const win = istSieger(g), s = stat.get(g.id);
+    return `<li class="gin${win && opt.hervorheben ? " win" : ""}">
+      <button class="gin-kopf" data-act="gin-edit" data-id="${esc(g.id)}">
+        <span><span class="gin-name">${esc(g.name)}${win?`<span class="badge">Gewinner</span>`:""}</span>
+          <span class="meta">${[ginMeta(g), g.von && "von "+esc(g.von), opt.extra].filter(Boolean).join(" · ")}</span>
+          ${g.notiz && opt.notiz?`<span class="meta note" style="display:block">${esc(g.notiz)}</span>`:""}</span>
+        ${punkteHtml(g)}
+      </button>
+      ${opt.stimmen && s.wer.length?`<div class="stimmen">${s.wer.map(w=>`<span class="stimme">${avatar(w.person,22)}<em>★</em>${w.n}</span>`).join("")}</div>`:""}
+      ${opt.stimmen?`<div class="meine"><small>Deine Sterne</small>${sterneHtml(g.id)}</div>`:""}
+    </li>`;
+  }
+
+  function ginsDesAbends(a){
+    const gs = S.gins.filter(g=>g.abendId===a.id);                // Reihenfolge des Eintragens
+    const snap = S.sortiert[a.id];
+    if (!snap) return gs;
+    const pos = new Map(snap.map((id,i)=>[id,i]));
+    return [...gs].sort((x,y)=>(pos.has(x.id)?pos.get(x.id):1e9)-(pos.has(y.id)?pos.get(y.id):1e9));
+  }
+
+  function render(){
+    $("code-gate").hidden = !!S.code;
+    if (!S.code) { $("gate").hidden = true; $("app").hidden = true; return; }
+    $("gate").hidden = !!S.ich; $("app").hidden = !S.ich;
+    $("btn-ich").innerHTML = S.ich ? avatar(S.ich, 44) : "";
+    if (!S.ich) return;
+    rechne();
+    const echteAbende = S.abende.filter(a=>!istArchiv(a)).length;
+    const verschiedene = new Set(S.gins.map(g=>norm(g.name)).filter(Boolean)).size;   // gleicher Gin an zwei Abenden zählt einmal
+    if (S.geladen) $("zaehler").textContent = echteAbende + (echteAbende===1?" Abend":" Abende") + " · " + verschiedene + (verschiedene===1?" Gin":" Gins") + " verkostet";
+    const abende = [...S.abende].sort((a,b)=> String(b.datum).localeCompare(String(a.datum)));
+
+    const la = $("liste-abende");
+    if (!S.geladen) la.innerHTML = '<p class="meta">Lade …</p>';
+    else if (!abende.length) la.innerHTML = '<div class="empty"><strong>Noch kein Abend eingetragen.</strong><br>Lege unten mit „Neuer Abend“ euer erstes Tasting an, trage die mitgebrachten Gins ein und verteilt eure Sterne.</div>';
+    else la.innerHTML = abende.map(a => {
+      const w = ausw.get(a.id) || {};
+      const gs = ginsDesAbends(a);
+      const auf = S.offen.has(a.id);
+      const archiv = istArchiv(a);
+      const titel = `<div class="abend-kopf">${a.ort && !archiv ? avatar(a.ort, 44) : ""}
+          <h2 class="titel">${archiv ? "<b>Frühere Tastings</b>" : `<b>${a.ort ? esc(a.ort) : "Ohne Gastgeber"}</b><span>${kurzDatum(a.datum)}</span>`}</h2>
+          ${auf ? `<button class="pfeil" data-act="zu" data-id="${esc(a.id)}" aria-label="Zuklappen">▾</button>` : `<span class="pfeil" aria-hidden="true">▾</span>`}</div>`;
+      if (!auf) {
+        const stimmen = gs.reduce((n,g)=>n+stat.get(g.id).n, 0);
+        const reihe = [...gs].sort((x,y)=>(istSieger(y)-istSieger(x)) || ((stat.get(y.id).schnitt??-1)-(stat.get(x.id).schnitt??-1)));
+        return `<article class="abend zu" data-act="auf" data-id="${esc(a.id)}" role="button" tabindex="0" aria-expanded="false" aria-label="${archiv ? "Frühere Tastings" : "Abend bei "+esc(a.ort||"?")+" am "+kurzDatum(a.datum)} öffnen">
+          ${titel}
+          ${gs.length ? `<ul class="kurz">${reihe.slice(0, 6).map(g => { const s = stat.get(g.id), win = istSieger(g);
+              return `<li class="${win?"win":""}"><span>${esc(g.name)}${win?'<span class="badge">Gewinner</span>':""}</span><span class="wert">${s.n?`<small>Ø</small>${komma(s.schnitt)}`:'<small>–</small>'}</span></li>`; }).join("")}${gs.length>6?`<li><span class="meta" style="margin:0">und ${gs.length-6} weitere</span><span></span></li>`:""}</ul>` : ""}
+          <div class="fuss"><span>${gs.length ? (gs.length===1?"1 Gin":gs.length+" Gins") + " · " + stimmenWort(stimmen) : "Noch keine Gins"}</span><span>Antippen für Details</span></div>
+        </article>`;
+      }
+      let box = "";
+      if (w.offen && w.gleichstand){
+        const darf = !a.ort || !MITGLIEDER.includes(a.ort) || S.ich===a.ort;
+        box = `<div class="entscheid"><p><strong>Gleichstand</strong> bei Ø ${komma(stat.get(w.kandidaten[0].id).schnitt)}. ${a.ort?esc(a.ort)+" entscheidet als Gastgeber.":"Der Gastgeber entscheidet."}</p>
+          <div class="wahl">${w.kandidaten.map(g=>`<button class="primary klein" data-act="waehlen" data-abend="${esc(a.id)}" data-id="${esc(g.id)}"${darf?"":" disabled"}>${esc(g.name)}</button>`).join("")}</div>
+          ${darf?"":`<p class="meta">Nur ${esc(a.ort)} kann das entscheiden.</p>`}</div>`;
+      } else if (w.offen && gs.length && !archiv){
+        box = `<label for="direkt-${esc(a.id)}">Noch keine Sterne vergeben. Für ältere Abende kannst du den Gewinner direkt festlegen:
+          <select id="direkt-${esc(a.id)}" data-direkt="${esc(a.id)}"><option value="">Gewinner wählen …</option>${gs.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("")}</select></label>`;
+      } else if (w.sieger && w.art!=="bewertung"){
+        box = `<div><button class="link" data-act="waehlen" data-abend="${esc(a.id)}" data-id="">${w.art==="stichentscheid"?"Stichentscheid":"Festlegung"} zurücknehmen</button></div>`;
+      }
+      const sortierbar = gs.filter(g=>stat.get(g.id).n).length > 1;
+      return `<article class="abend auf" aria-expanded="true">
+        ${titel}
+        ${a.ort || archiv ? "" : `<div><button class="link" data-act="abend-edit" data-id="${esc(a.id)}">Gastgeber eintragen</button></div>`}
+        ${archiv ? `<p class="meta" style="margin:0">Gins aus der Zeit vor der GintApp. Ihr könnt sie nachträglich bewerten, sie zählen aber für keinen Abend als Gewinner.</p>` : ""}
+        ${a.notiz?`<p class="meta note" style="margin:0">${esc(a.notiz)}</p>`:""}
+        ${gs.length?`<ul class="gins">${gs.map(g=>ginKarte(g,{hervorheben:true, stimmen:true, notiz:true})).join("")}</ul>`:'<p class="meta">Noch keine Gins an diesem Abend.</p>'}
+        ${box}
+        ${sortierbar?`<div class="werkzeug"><button class="klein" data-act="sortieren" data-id="${esc(a.id)}">Nach Punkten sortieren</button>${S.sortiert[a.id]?`<button class="link" data-act="unsortiert" data-id="${esc(a.id)}">Ursprüngliche Reihenfolge</button>`:""}</div>`:""}
+        ${archiv ? `<button class="primary" data-act="gin-neu" data-id="${esc(a.id)}">+ Früheren Gin eintragen</button>`
+                 : `<div class="row2"><button data-act="abend-edit" data-id="${esc(a.id)}">Abend bearbeiten</button><button class="primary" data-act="gin-neu" data-id="${esc(a.id)}">+ Gin eintragen</button></div>`}
+      </article>`;}).join("");
+
+    const q = norm($("suche").value), sort = $("sortierung").value;
+    const dOf = g => String(abendVon(g.abendId)?.datum ?? "");
+    const gl = S.gins.filter(g => !q || [g.name,g.herkunft,g.stil,g.von,g.notiz].some(v=>norm(v).includes(q)));
+    gl.sort(sort==="name" ? (a,b)=>String(a.name).localeCompare(String(b.name),"de")
+          : sort==="abv" ? (a,b)=>(zahl(b.abv)??-1)-(zahl(a.abv)??-1)
+          : sort==="sterne" ? (a,b)=>(stat.get(b.id).schnitt??-1)-(stat.get(a.id).schnitt??-1)
+          : (a,b)=>dOf(b).localeCompare(dOf(a)));
+    $("liste-gins").innerHTML = !S.geladen ? "" : gl.length ? gl.map(g=>ginKarte(g, {extra: dOf(g) && kurzDatum(dOf(g))})).join("")
+      : `<li class="empty">${S.gins.length?"Kein Gin passt zur Suche.":"<strong>Noch keine Gins.</strong><br>Gins trägst du bei einem Abend ein. Hier erscheinen dann alle auf einen Blick."}</li>`;
+
+    // Beste aller Zeiten: gleiche Gins verschiedener Abende werden zusammengefasst.
+    const gruppen = new Map();
+    S.gins.forEach(g => { const k = norm(g.name); if (!k) return; const e = gruppen.get(k) || {name:g.name, n:0, summe:0, abende:0}; const s = stat.get(g.id);
+      e.n += s.n; e.summe += s.summe; e.abende++; gruppen.set(k, e); });
+    const top = [...gruppen.values()].filter(e=>e.n>=2).map(e=>({...e, schnitt:e.summe/e.n})).sort((a,b)=>b.schnitt-a.schnitt||b.n-a.n).slice(0,10);
+    $("liste-top").innerHTML = !S.geladen ? "" : top.length ? top.map(e=>`<li class="${top[0].schnitt-e.schnitt<1e-9?"erster":""}"><span class="platz">${1+top.filter(x=>x.schnitt>e.schnitt+1e-9).length}</span>
+        <span class="name"><b>${esc(e.name)}</b><span class="meta">${stimmenWort(e.n)}${e.abende>1?" · "+e.abende+" Abende":""}</span></span>
+        <span class="punkte"><strong><small>Ø</small>${komma(e.schnitt)}</strong></span></li>`).join("")
+      : '<li class="empty">Hier erscheinen die zehn Gins mit dem höchsten Schnitt, sobald sie mindestens zwei Stimmen haben.</li>';
+
+    const p = new Map();
+    MITGLIEDER.forEach(m => p.set(m, {n:m, siege:0, gins:0}));
+    S.gins.forEach(g=>{ const n=String(g.von??"").trim(); if(!n) return; const e=p.get(n)||{n,siege:0,gins:0}; e.gins++; if(istSieger(g)) e.siege++; p.set(n,e); });
+    const rang = [...p.values()].sort((a,b)=>b.siege-a.siege||b.gins-a.gins), max = Math.max(1,...rang.map(r=>r.siege));
+    $("liste-rang").innerHTML = !S.geladen ? "" : rang.map(r=>`<li>${avatar(r.n,36)}<button class="who" data-act="profil" data-id="${esc(r.n)}">${esc(r.n)}</button><span class="zahl">${r.siege} ${r.siege===1?"Sieg":"Siege"} · ${r.gins} ${r.gins===1?"Gin":"Gins"}</span><span class="bar"><i style="width:${r.siege/max*100}%"></i></span></li>`).join("");
+
+    const sieger = abende.map(a=>({a, w:ausw.get(a.id)||{}})).filter(x=>x.w.sieger);
+    const zeige = S.alleSieger ? sieger : sieger.slice(0,10);
+    $("liste-gewinner").innerHTML = !S.geladen ? "" : sieger.length ? zeige.map(({a,w})=>`<li><div><b>${esc(w.sieger.name)}</b>
+        <div class="meta">${[kurzDatum(a.datum), w.sieger.von && "von "+esc(w.sieger.von), w.art==="stichentscheid" && "Stichentscheid"].filter(Boolean).join(" · ")}</div></div>
+        ${stat.get(w.sieger.id).n?`<span class="punkte"><strong><small>Ø</small>${komma(stat.get(w.sieger.id).schnitt)}</strong></span>`:""}</li>`).join("")
+      : '<li class="empty">Sobald ihr bei einem Abend Sterne vergeben habt, steht der beste Gin hier.</li>';
+    $("btn-alle-sieger").hidden = sieger.length <= 10;
+    $("btn-alle-sieger").textContent = S.alleSieger ? "Nur die letzten 10 zeigen" : `Alle ${sieger.length} Gewinner zeigen`;
+
+    renderProfile(abende);
+    if ($("dlg-gin").open && S.ginId) renderBewertungen();
+  }
+
+  function renderProfile(abende){
+    $("profil-grid").innerHTML = MITGLIEDER.map(m => {
+      const n = S.gins.filter(g=>g.von===m).length;
+      return `<button data-act="profil" data-id="${esc(m)}">${avatar(m,64)}<span>${esc(m)}${m===S.ich?" (du)":""}</span><small>${n===1?"1 Gin":n+" Gins"} mitgebracht</small></button>`; }).join("");
+    const p = S.profil;
+    $("profil-liste").hidden = !!p; $("profil-detail").hidden = !p;
+    if (!p) return;
+    const dOf = g => String(abendVon(g.abendId)?.datum ?? "");
+    const gins = S.gins.filter(g=>g.von===p).sort((a,b)=>dOf(b).localeCompare(dOf(a)));
+    const siege = gins.filter(istSieger);
+    const erhalten = gins.reduce((o,g)=>{ const s=stat.get(g.id); o.n+=s.n; o.summe+=s.summe; return o; }, {n:0,summe:0});
+    const gehostet = abende.filter(a=>a.ort===p);
+    const vergeben = S.bewertungen.filter(b=>b.person===p && S.gins.some(g=>g.id===b.ginId) && Number(b.sterne)>=1);
+    const vSumme = vergeben.reduce((n,b)=>n+Number(b.sterne),0);
+    const dabei = new Set(vergeben.map(b=>S.gins.find(g=>g.id===b.ginId).abendId).filter(id=>!istArchiv(abendVon(id)))); gins.forEach(g=>{ if (!istArchiv(abendVon(g.abendId))) dabei.add(g.abendId); }); gehostet.forEach(a=>dabei.add(a.id));
+    const lieblinge = [...vergeben].sort((a,b)=>Number(b.sterne)-Number(a.sterne) || dOf(S.gins.find(g=>g.id===b.ginId)).localeCompare(dOf(S.gins.find(g=>g.id===a.ginId))));
+    const fav = lieblinge[0] && S.gins.find(g=>g.id===lieblinge[0].ginId);
+    const kz = (wert, text, hervor) => `<div class="kennzahl${hervor?" hervor":""}"><strong>${wert}</strong><span>${text}</span></div>`;
+    $("profil-detail").innerHTML = `
+      <div><button class="link" data-act="profil" data-id="">‹ Alle Profile</button></div>
+      <div class="profil-kopf">${avatar(p,88)}<div><h2>${esc(p)}</h2><p class="meta">Bei ${dabei.size} ${dabei.size===1?"Abend":"Abenden"} dabei</p></div></div>
+      <div class="kennzahlen">
+        ${kz(siege.length, siege.length===1?"Sieg":"Siege", siege.length>0)}
+        ${kz(gins.length, "Gins mitgebracht")}
+        ${kz(gehostet.length, gehostet.length===1?"Abend gehostet":"Abende gehostet")}
+        ${kz(erhalten.n ? komma(erhalten.summe/erhalten.n) : "–", "Ø für die eigenen Gins")}
+        ${kz(vergeben.length, vergeben.length===1?"Stimme abgegeben":"Stimmen abgegeben")}
+        ${kz(vergeben.length ? komma(vSumme/vergeben.length) : "–", "Ø vergebene Sterne")}
+      </div>
+      ${fav?`<div class="abschnitt"><h3>Lieblings-Gin</h3><div class="liebling"><div><b>${esc(fav.name)}</b><span class="meta">${[kurzDatum(dOf(fav)), fav.von && "von "+esc(fav.von)].filter(Boolean).join(" · ")}</span></div>${festeSterne(Number(lieblinge[0].sterne))}</div></div>`:""}
+      <div class="abschnitt"><h3>Mitgebrachte Gins</h3>
+        ${gins.length?`<ul class="gins">${gins.map(g=>ginKarte(g,{extra: dOf(g) && kurzDatum(dOf(g))})).join("")}</ul>`:'<p class="empty">Noch keine Gins mitgebracht.</p>'}</div>
+      <div class="abschnitt"><h3>Gehostete Abende</h3>
+        ${gehostet.length?`<ul class="sieger">${gehostet.map(a=>{ const w=ausw.get(a.id)||{}, n=S.gins.filter(g=>g.abendId===a.id).length;
+          return `<li><div><b>${kurzDatum(a.datum)}</b><div class="meta">${n===1?"1 Gin":n+" Gins"}${w.sieger?" · Gewinner: "+esc(w.sieger.name):""}</div></div></li>`; }).join("")}</ul>`:'<p class="empty">Noch keinen Abend gehostet.</p>'}</div>
+      <div class="abschnitt"><h3>${esc(p)}s Bewertungen</h3>
+        ${vergeben.length?`<ul class="sieger">${lieblinge.map(b=>{ const g=S.gins.find(x=>x.id===b.ginId);
+          return `<li><div><b>${esc(g.name)}</b><div class="meta">${[kurzDatum(dOf(g)), g.von && "von "+esc(g.von)].filter(Boolean).join(" · ")}</div></div>${festeSterne(Number(b.sterne))}</li>`; }).join("")}</ul>`:'<p class="empty">Noch keine Stimmen abgegeben.</p>'}</div>`;
+  }
+
+  function renderBewertungen(){
+    const s = stat.get(S.ginId) || {n:0, summe:0, wer:[]};
+    $("gin-meine").innerHTML = `<div class="bew-zeile"><span>${avatar(S.ich,32)}${esc(S.ich)}</span>${sterneHtml(S.ginId)}</div>`;
+    const andere = s.wer.filter(w => w.person !== S.ich);
+    $("gin-andere").innerHTML = andere.length ? andere.map(w=>`<div class="bew-zeile"><span>${avatar(w.person,32)}${esc(w.person)}</span>${festeSterne(w.n)}</div>`).join("")
+      : '<p class="meta" style="margin:0">Noch hat niemand sonst bewertet.</p>';
+    const r = $("gin-rechnung"); r.hidden = !s.n;
+    if (s.n) r.textContent = s.wer.map(w=>w.n).join(" + ") + " = " + s.summe + (s.summe===1?" Stern":" Sterne") + " ÷ " + stimmenWort(s.n) + " = Ø " + komma(s.schnitt);
+  }
+
+  /* --- Vorschlagslisten beim Tippen --- */
+  function vorschlaege(input, box, quelle, opt){
+    const zeigen = () => {
+      const q = norm(input.value);
+      if (!q) { box.hidden = true; return; }
+      const alle = quelle(), treffer = [...alle.filter(x=>norm(x).startsWith(q)), ...alle.filter(x=>!norm(x).startsWith(q) && norm(x).includes(q))].slice(0,6);
+      const exakt = alle.some(x=>norm(x)===q);
+      if (exakt && treffer.length===1) { box.hidden = true; return; }
+      box.innerHTML = treffer.map(x=>`<button type="button" data-wert="${esc(x)}">${esc(x)}</button>`).join("")
+        + (opt.neu && !exakt ? `<button type="button" class="neu" data-neu="1">„${esc(input.value.trim())}“ neu anlegen</button>` : "");
+      box.hidden = !box.innerHTML;
+    };
+    input.addEventListener("input", zeigen);
+    input.addEventListener("focus", zeigen);
+    box.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.wert !== undefined) { input.value = b.dataset.wert; if (opt.gewaehlt) opt.gewaehlt(b.dataset.wert); }
+      else if (opt.gewaehlt) opt.gewaehlt(null);
+      box.hidden = true; });
+  }
+  const bekannteGins = () => { const m = new Map(); S.gins.forEach(g => { const k = norm(g.name); if (k && !m.has(k)) m.set(k, g.name); }); return [...m.values()].sort((a,b)=>a.localeCompare(b,"de")); };
+  vorschlaege($("gin-name"), $("vor-name"), bekannteGins, { neu:true, gewaehlt: name => {
+    const h = $("gin-hinweis"); h.hidden = false;
+    if (name === null) { h.textContent = "Neuer Gin. Fülle die Angaben unten aus."; return; }
+    const alt = [...S.gins].reverse().find(g => norm(g.name)===norm(name));
+    if (alt) { $("gin-herkunft").value = alt.herkunft || ""; $("gin-stil").value = alt.stil || ""; $("gin-abv").value = alt.abv ? String(alt.abv).replace(".",",") : ""; }
+    h.textContent = "Schon in der GintApp. Land, Stil und Alkohol wurden übernommen.";
+  }});
+  vorschlaege($("gin-herkunft"), $("vor-land"), () => LAENDER, {});
+
+  /* --- Mitglieder --- */
+  function fuelle(sel, leer, wert){
+    const extra = wert && !MITGLIEDER.includes(wert) ? [wert] : [];
+    sel.innerHTML = `<option value="">${leer}</option>` + [...MITGLIEDER, ...extra].map(m=>`<option>${esc(m)}</option>`).join("");
+    sel.value = wert || "";
+  }
+  $("gate-grid").innerHTML = MITGLIEDER.map(m=>`<button data-act="ich" data-id="${esc(m)}">${avatar(m,84)}${esc(m)}</button>`).join("");
+  function setzeIch(m){ S.ich = m; try { localStorage.setItem("gin-ich", m); } catch(e){} render(); window.scrollTo(0,0); }
+  $("btn-ich").addEventListener("click", () => { S.ich = ""; render(); });
+
+  $("suche").addEventListener("input", render);
+  $("sortierung").addEventListener("change", render);
+  $("btn-alle-sieger").addEventListener("click", () => { S.alleSieger = !S.alleSieger; render(); });
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+  document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+
+  function resetDel(btn, text){ btn.dataset.sure=""; btn.textContent=text; }
+  function oeffneAbend(id){
+    const a = id ? abendVon(id) : null; S.abendId = id || null;
+    $("dlg-abend-titel").textContent = a ? "Abend bearbeiten" : "Neuer Abend";
+    $("abend-datum").value = a?.datum || heute(); fuelle($("abend-ort"), "Wer lädt ein?", a ? a.ort : S.ich); $("abend-notiz").value = a?.notiz || "";
+    $("abend-loeschen").hidden = !a; resetDel($("abend-loeschen"),"Abend löschen");
+    $("dlg-abend").showModal();
+  }
+  function oeffneGin(id, abendId){
+    const g = id ? S.gins.find(x=>x.id===id) : null; S.ginId = id || null; S.ginAbend = g ? g.abendId : abendId;
+    $("dlg-gin-titel").textContent = g ? "Gin bearbeiten" : "Gin eintragen";
+    $("gin-name").value=g?.name||""; $("gin-herkunft").value=g?.herkunft||"";
+    $("gin-stil").value=g?.stil||""; $("gin-abv").value=g?.abv ? String(g.abv).replace(".",",") : ""; fuelle($("gin-von"), "–", g ? g.von : S.ich); $("gin-notiz").value=g?.notiz||"";
+    $("vor-name").hidden = true; $("vor-land").hidden = true; $("gin-hinweis").hidden = true;
+    $("gin-bewertungen").hidden = !g; if (g) renderBewertungen();
+    $("gin-loeschen").hidden = !g; resetDel($("gin-loeschen"),"Gin löschen");
+    $("dlg-gin").showModal();
+  }
+  $("fab").addEventListener("click", () => oeffneAbend(null));
+  $("btn-neu-laden").addEventListener("click", () => server("ladeDaten", [], "Aktualisiert", true));
+
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.dataset.id, act = b.dataset.act;
+    if (act==="ich") setzeIch(id);
+    else if (act==="auf") { S.offen.add(id); render(); }
+    else if (act==="profil") { S.profil = id || ""; if (S.tab!=="profile") zeigeTab("profile"); else window.scrollTo(0,0); render(); }
+    else if (act==="zu") { S.offen.delete(id); render(); }
+    else if (act==="abend-edit") oeffneAbend(id);
+    else if (act==="gin-neu") oeffneGin(null, id);
+    else if (act==="gin-edit") oeffneGin(id);
+    else if (act==="sortieren") {
+      const a = abendVon(id); if (!a) return;
+      S.sortiert[id] = S.gins.filter(g=>g.abendId===id).sort((x,y)=>(stat.get(y.id).schnitt??-1)-(stat.get(x.id).schnitt??-1)).map(g=>g.id);
+      render();
+    }
+    else if (act==="unsortiert") { delete S.sortiert[id]; render(); }
+    else if (act==="stern") {
+      if (!S.ich) return;
+      const gin = b.dataset.gin, n = Number(b.dataset.n);
+      const neu = meine(gin, S.ich) === n ? 0 : n;             // gleicher Stern noch einmal = Bewertung löschen
+      S.bewertungen = S.bewertungen.filter(x => !(x.ginId===gin && x.person===S.ich));
+      if (neu) S.bewertungen.push({id:"", ginId:gin, person:S.ich, sterne:String(neu)});
+      render();                                                 // Platz bleibt, im Hintergrund speichern
+      server("setzeBewertung", [gin, S.ich, neu]);
+    }
+    else if (act==="waehlen") {
+      const a = abendVon(b.dataset.abend); if (!a) return;
+      a.gewinner = id || ""; render();
+      server("setzeGewinner", [a.id, id || ""], id ? "Gewinner festgelegt" : "Zurückgenommen", true);
+    }
+  });
+  document.addEventListener("change", e => {
+    const s = e.target.closest("[data-direkt]"); if (!s || !s.value) return;
+    const a = abendVon(s.dataset.direkt); if (!a) return;
+    a.gewinner = s.value; render();
+    server("setzeGewinner", [a.id, s.value], "Gewinner festgelegt", true);
+  });
+
+  async function senden(form, name, daten){
+    const btn = form.querySelector('[type="submit"]'); btn.disabled = true;
+    if (await server(name, [daten], "Gespeichert")) form.closest("dialog").close();
+    btn.disabled = false;
+  }
+  $("form-abend").addEventListener("submit", async e => { e.preventDefault();
+    const d = { datum:$("abend-datum").value, ort:$("abend-ort").value, notiz:$("abend-notiz").value.trim() };
+    if (S.abendId) d.id = S.abendId; else d.gewinner = "";
+    const vorher = new Set(S.abende.map(a=>a.id));
+    await senden(e.target, "speichereAbend", d);
+    const neu = S.abende.find(a=>!vorher.has(a.id));             // neuen Abend gleich aufgeklappt zeigen
+    if (neu) { S.offen.add(neu.id); render(); }
+  });
+  document.addEventListener("keydown", e => {
+    const k = e.target.closest && e.target.closest('[data-act="auf"]');
+    if (k && (e.key==="Enter" || e.key===" ")) { e.preventDefault(); S.offen.add(k.dataset.id); render(); }
+  });
+  $("form-gin").addEventListener("submit", e => { e.preventDefault();
+    const n = zahl($("gin-abv").value);
+    const d = { abendId:S.ginAbend, name:$("gin-name").value.trim(), herkunft:$("gin-herkunft").value.trim(),
+      stil:$("gin-stil").value, abv:n===null ? "" : String(n), von:$("gin-von").value, notiz:$("gin-notiz").value.trim() };
+    if (S.ginId) d.id = S.ginId;
+    senden(e.target, "speichereGin", d);
+  });
+  async function loeschen(btn, frage, name, id){
+    if (!btn.dataset.sure) { btn.dataset.sure="1"; btn.textContent=frage; return; }
+    btn.disabled = true;
+    if (await server(name, [id], "Gelöscht")) btn.closest("dialog").close();
+    btn.disabled = false;
+  }
+  $("gin-loeschen").addEventListener("click", e => loeschen(e.target, "Wirklich löschen?", "loescheGin", S.ginId));
+  $("abend-loeschen").addEventListener("click", e => {
+    const n = S.gins.filter(g=>g.abendId===S.abendId).length;
+    loeschen(e.target, n ? `Abend und ${n} ${n===1?"Gin":"Gins"} wirklich löschen?` : "Wirklich löschen?", "loescheAbend", S.abendId);
+  });
+
+  // Einträge der anderen holen, wenn die App wieder in den Vordergrund kommt.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && S.code && S.geladen && wartend===0 && !document.querySelector("dialog[open]")) server("ladeDaten", []);
+  });
+
+  if (!online) { $("hinweis").hidden = false; $("hinweis").textContent = "Vorschau ohne Google Sheet: In config.js fehlt noch die Web-App-Adresse. Einträge werden nicht gespeichert."; }
+  zeigeTab("abende"); render();
+  if (S.code) server("ladeDaten", []);
+})();
+</script>
+</body>
+</html>
