@@ -130,6 +130,7 @@ ul.gins{display:flex;flex-direction:column;gap:8px}
 .entscheid{background:var(--soft);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .entscheid p{margin:0;font-size:.92rem}
 .entscheid .wahl{display:flex;flex-wrap:wrap;gap:8px}
+.entscheid input{background:var(--surface);border-color:var(--line)}
 .empty{border:1.5px dashed var(--line);border-radius:16px;padding:18px;color:var(--muted)}
 .empty strong{color:var(--ink)}
 .notice{background:var(--soft);border-radius:14px;padding:12px 14px;color:var(--muted);font-size:.9rem}
@@ -350,6 +351,9 @@ dialog form{display:flex;flex-direction:column;gap:12px}
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="config.js"></script>
 <script>
 (function(){
@@ -485,7 +489,7 @@ dialog form{display:flex;flex-direction:column;gap:12px}
     : `<span class="ava" style="width:${px}px;height:${px}px;display:inline-grid;place-items:center;line-height:1;font-size:${Math.round(px*.45)}px;font-weight:700">${esc(String(p||"?").slice(0,1).toUpperCase())}</span>`;
 
   const $ = id => document.getElementById(id);
-  const S = { profil:"", abende:[], gins:[], bewertungen:[], geladen:false, tab:"abende", abendId:null, ginId:null, ginAbend:null, ich:"", sortiert:{}, alleSieger:false, offen:new Set() };
+  const S = { authBereit:false, profil:"", abende:[], gins:[], bewertungen:[], geladen:false, tab:"abende", abendId:null, ginId:null, ginAbend:null, ich:"", sortiert:{}, alleSieger:false, offen:new Set() };
   function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   const norm = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
   const datum = d => { const t = new Date(d + "T12:00:00"); return isNaN(t) ? esc(d) : t.toLocaleDateString("de-DE",{weekday:"short",day:"numeric",month:"long",year:"numeric"}); };
@@ -496,12 +500,20 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   const heute = () => { const n = new Date(); return new Date(n - n.getTimezoneOffset()*60000).toISOString().slice(0,10); };
   const stimmenWort = n => n === 1 ? "1 Stimme" : n + " Stimmen";
   try { S.ich = localStorage.getItem("gin-ich") || ""; } catch(e){}
-  S.code = ""; try { S.code = localStorage.getItem("gin-code") || ""; } catch(e){}
+  S.code = "";            // "ok", sobald die Gruppe angemeldet ist
   if (!MITGLIEDER.includes(S.ich)) S.ich = "";
 
-  /* --- Verbindung zum Google Sheet (mit Vorschau-Modus ohne Google) --- */
-  const API = String(window.GINTAPP_API || "").trim();
-  const online = /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(API);
+  /* --- Verbindung zu Firebase (mit Vorschau-Modus ohne Firebase) --- */
+  const FB = window.GINTAPP_FIREBASE || {};
+  const GRUPPE = String(window.GINTAPP_GRUPPE || "gin-runde@example.com").trim();
+  const ALT_API = String(window.GINTAPP_API || "").trim();          // alte Apps-Script-Adresse, nur für die Übernahme
+  const online = !!(FB.apiKey && FB.projectId && window.firebase);
+  let auth = null, db = null, abos = [];
+  const bewId = (ginId, person) => ginId + "__" + encodeURIComponent(person);
+  const nur = (o, felder) => { const r = {}; felder.forEach(k => { r[k] = o[k] == null ? "" : String(o[k]); }); return r; };
+  const ABEND_FELDER = ["datum","ort","notiz","gewinner"];
+  const GIN_FELDER = ["abendId","name","herkunft","stil","abv","von","notiz"];
+
   let demo = { abende:[], gins:[], bewertungen:[] };
   function demoAufruf(name, a){
     const id = () => "x" + Math.random().toString(36).slice(2,10);
@@ -514,37 +526,81 @@ dialog form{display:flex;flex-direction:column;gap:12px}
     if (name==="loescheAbend"){ const weg = demo.gins.filter(g=>g.abendId===a[0]).map(g=>g.id); demo.bewertungen = demo.bewertungen.filter(b=>!weg.includes(b.ginId)); demo.gins = demo.gins.filter(g=>g.abendId!==a[0]); demo.abende = demo.abende.filter(x=>x.id!==a[0]); }
     return JSON.parse(JSON.stringify(demo));
   }
-  async function aufruf(name, ...args){
-    if (!online) return demoAufruf(name, args);
-    let antwort;
-    try {
-      // text/plain vermeidet die CORS-Vorabfrage, die Apps Script nicht beantwortet
-      antwort = await fetch(API, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
-        body: JSON.stringify({ fn:name, args:[S.code, ...args] }), redirect:"follow" });
-    } catch(e) { throw new Error("Keine Verbindung zum Google Sheet. Prüfe dein Internet und versuch es noch einmal."); }
-    if (!antwort.ok) throw new Error("Das Google Sheet antwortet nicht (Fehler " + antwort.status + ").");
-    let j; try { j = await antwort.json(); } catch(e) { throw new Error("Unerwartete Antwort vom Google Sheet. Stimmt die Adresse in config.js?"); }
-    if (!j.ok) throw new Error(j.error || "Unbekannter Fehler");
-    return j.data;
+
+  // Schreibvorgänge in Firestore. Neue Daten kommen über die Live-Abfragen zurück, nicht über die Antwort.
+  function firestoreAufruf(name, a){
+    const col = n => db.collection(n);
+    if (name==="ladeDaten") return Promise.resolve();
+    if (name==="speichereAbend") { const d = a[0]; return d.id ? col("abende").doc(d.id).set(nur(d, ["datum","ort","notiz"]), {merge:true})
+                                                               : col("abende").doc().set(nur({...d, gewinner:""}, ABEND_FELDER)); }
+    if (name==="speichereGin")   { const d = a[0]; return (d.id ? col("gins").doc(d.id) : col("gins").doc()).set(nur(d, GIN_FELDER), {merge:true}); }
+    if (name==="setzeGewinner")  return col("abende").doc(a[0]).set({gewinner: String(a[1] || "")}, {merge:true});
+    if (name==="setzeBewertung") { const ref = col("bewertungen").doc(bewId(a[0], a[1]));
+                                   return a[2] >= 1 ? ref.set({ginId:a[0], person:a[1], sterne:String(a[2])}) : ref.delete(); }
+    const batch = db.batch();
+    if (name==="loescheGin") {
+      S.bewertungen.filter(b=>b.ginId===a[0]).forEach(b => batch.delete(col("bewertungen").doc(b.id)));
+      S.abende.filter(x=>x.gewinner===a[0]).forEach(x => batch.set(col("abende").doc(x.id), {gewinner:""}, {merge:true}));
+      batch.delete(col("gins").doc(a[0]));
+    }
+    if (name==="loescheAbend") {
+      S.gins.filter(g=>g.abendId===a[0]).forEach(g => {
+        S.bewertungen.filter(b=>b.ginId===g.id).forEach(b => batch.delete(col("bewertungen").doc(b.id)));
+        batch.delete(col("gins").doc(g.id)); });
+      batch.delete(col("abende").doc(a[0]));
+    }
+    return batch.commit();
   }
-  // Aufrufe laufen nacheinander; nur die Antwort des letzten wartenden Aufrufs wird übernommen.
-  let kette = Promise.resolve(), wartend = 0;
+  function aufruf(name, ...args){
+    if (!online) return Promise.resolve(demoAufruf(name, args));
+    // Ohne Netz bestätigt Firestore erst später. Nach 4 Sekunden gilt die Änderung als vorgemerkt.
+    return Promise.race([firestoreAufruf(name, args), new Promise(ok => setTimeout(() => ok("spaeter"), 4000))]);
+  }
+  function fehlerText(e){
+    const c = e && e.code || "";
+    if (c==="permission-denied") return "Keine Berechtigung. Melde dich bitte mit dem Gruppen-Code neu an.";
+    if (c==="unavailable") return "Keine Verbindung. Die Änderung wird übertragen, sobald du wieder online bist.";
+    return (e && e.message) || "Das hat nicht geklappt.";
+  }
   function uebernehmen(d){ S.abende = d.abende || []; S.gins = d.gins || []; S.bewertungen = d.bewertungen || []; S.geladen = true; render(); }
   function server(name, args, meldung, still){
-    wartend++;
     if (meldung && !still) toast("Speichert …", true);
-    const p = kette.then(() => aufruf(name, ...args));
-    kette = p.catch(() => {});
-    return p.then(d => { wartend--; if (wartend === 0) uebernehmen(d); if (meldung) toast(meldung); return true; },
-      e => { wartend--;
-             if (codeFalsch(e)) { codeAbgelehnt("Der gespeicherte Code gilt nicht mehr. Bitte gib den aktuellen Code ein."); return false; }
-             toast("Fehler: " + ((e && e.message) ? e.message : "Das hat nicht geklappt."), false, 7000);
-             if (wartend === 0 && name !== "ladeDaten") server("ladeDaten", []); return false; });
+    return aufruf(name, ...args).then(d => {
+        if (!online && d) uebernehmen(d);
+        if (meldung) toast(d==="spaeter" ? "Vorgemerkt, wird übertragen, sobald du online bist" : meldung);
+        return true; },
+      e => { toast("Fehler: " + fehlerText(e), false, 7000);
+             if (e && e.code==="permission-denied" && auth) auth.signOut();
+             return false; });
   }
 
-  const codeFalsch = e => String(e && e.message || e).includes("CODE_FALSCH");
+  // Live-Abfragen: Jede Änderung der anderen erscheint sofort.
+  let zeichnen = 0;
+  function spaeterZeichnen(){ if (!zeichnen) zeichnen = requestAnimationFrame(() => { zeichnen = 0; render(); }); }
+  function abonnieren(){
+    abbestellen();
+    const da = {abende:false, gins:false, bewertungen:false};
+    ["abende","gins","bewertungen"].forEach(n => {
+      abos.push(db.collection(n).onSnapshot(snap => {
+        S[n] = snap.docs.map(d => ({...d.data(), id:d.id}));
+        if (n === "abende") neuenAbendAufklappen();
+        da[n] = true; if (da.abende && da.gins && da.bewertungen) S.geladen = true;
+        spaeterZeichnen();
+      }, e => {
+        if (e && e.code==="permission-denied") { codeAbgelehnt("Der Gruppen-Code wurde geändert. Bitte gib den aktuellen Code ein."); auth.signOut(); }
+        else toast("Verbindung unterbrochen: " + fehlerText(e), false, 7000);
+      }));
+    });
+  }
+  function neuenAbendAufklappen(){
+    if (!S.vorherAbende) return;
+    const neu = S.abende.find(a => !S.vorherAbende.has(a.id));
+    if (neu) { S.offen.add(neu.id); S.vorherAbende = null; spaeterZeichnen(); }
+  }
+  function abbestellen(){ abos.forEach(f => f()); abos = []; }
+
   function codeAbgelehnt(text){
-    S.code = ""; try { localStorage.removeItem("gin-code"); } catch(e){}
+    S.code = ""; abbestellen();
     S.geladen = false; S.abende = []; S.gins = []; S.bewertungen = [];
     document.querySelectorAll("dialog[open]").forEach(d => d.close());
     $("toast").hidden = true; render();
@@ -553,17 +609,48 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   $("form-code").addEventListener("submit", async e => {
     e.preventDefault();
     const knopf = $("code-knopf"), f = $("code-fehler");
-    S.code = $("code-eingabe").value.trim(); if (!S.code) return;
+    const code = $("code-eingabe").value.trim(); if (!code) return;
     knopf.disabled = true; knopf.textContent = "Prüfe …"; f.hidden = true;
     try {
-      const d = await aufruf("ladeDaten");
-      try { localStorage.setItem("gin-code", S.code); } catch(err){}
-      $("code-eingabe").value = ""; uebernehmen(d);
+      if (online) await auth.signInWithEmailAndPassword(GRUPPE, code);   // Rest erledigt onAuthStateChanged
+      else { S.code = "ok"; uebernehmen(demoAufruf("ladeDaten", [])); }
+      $("code-eingabe").value = "";
     } catch(err) {
-      S.code = "";
-      f.textContent = codeFalsch(err) ? "Der Code stimmt nicht." : ((err && err.message) || "Das hat nicht geklappt. Versuch es noch einmal.");
+      const c = err && err.code || "";
+      f.textContent = /wrong-password|invalid-credential|invalid-login|user-not-found|invalid-email|missing-password/.test(c) ? "Der Code stimmt nicht."
+        : c.includes("too-many-requests") ? "Zu viele Versuche. Warte bitte ein paar Minuten."
+        : c.includes("network") ? "Keine Verbindung. Prüfe dein Internet."
+        : ((err && err.message) || "Das hat nicht geklappt. Versuch es noch einmal.");
       f.hidden = false;
     } finally { knopf.disabled = false; knopf.textContent = "Weiter"; }
+  });
+
+  /* --- Einmalige Übernahme aus dem Google Sheet --- */
+  async function uebernimmAusSheet(code){
+    let r;
+    try { r = await fetch(ALT_API, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({fn:"ladeDaten", args:[code]}) }); }
+    catch(e) { throw new Error("Das Google Sheet ist nicht erreichbar. Prüfe dein Internet."); }
+    const j = await r.json().catch(() => ({ok:false, error:"Unerwartete Antwort vom Google Sheet."}));
+    if (!j.ok) throw new Error(j.error==="CODE_FALSCH" ? "Der Code für das Google Sheet stimmt nicht." : j.error);
+    const d = j.data, ops = [];
+    (d.abende||[]).forEach(a => a.id && ops.push(["abende", a.id, nur(a, ABEND_FELDER)]));
+    (d.gins||[]).forEach(g => g.id && ops.push(["gins", g.id, nur(g, GIN_FELDER)]));
+    (d.bewertungen||[]).forEach(b => b.ginId && b.person && Number(b.sterne)>=1 && ops.push(["bewertungen", bewId(b.ginId, b.person), {ginId:b.ginId, person:b.person, sterne:String(b.sterne)}]));
+    for (let i = 0; i < ops.length; i += 400) {
+      const batch = db.batch();
+      ops.slice(i, i+400).forEach(([c, id, data]) => batch.set(db.collection(c).doc(id), data));
+      await batch.commit();
+    }
+    return { abende:(d.abende||[]).length, gins:(d.gins||[]).length, bewertungen:(d.bewertungen||[]).length };
+  }
+  document.addEventListener("submit", async e => {
+    if (e.target.id !== "form-import") return;
+    e.preventDefault();
+    const knopf = e.target.querySelector("button"), f = $("import-fehler");
+    knopf.disabled = true; knopf.textContent = "Übernehme …"; f.hidden = true;
+    try { const n = await uebernimmAusSheet($("import-code").value.trim());
+          toast(`Übernommen: ${n.abende} Abende, ${n.gins} Gins, ${n.bewertungen} Bewertungen`, false, 6000); }
+    catch(err) { f.textContent = (err && err.message) || "Das hat nicht geklappt."; f.hidden = false; knopf.disabled = false; knopf.textContent = "Daten übernehmen"; }
   });
 
   let toastT;
@@ -633,6 +720,7 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   }
 
   function render(){
+    if (!S.authBereit) { $("code-gate").hidden = true; $("gate").hidden = true; $("app").hidden = true; return; }
     $("code-gate").hidden = !!S.code;
     if (!S.code) { $("gate").hidden = true; $("app").hidden = true; return; }
     $("gate").hidden = !!S.ich; $("app").hidden = !S.ich;
@@ -646,6 +734,11 @@ dialog form{display:flex;flex-direction:column;gap:12px}
 
     const la = $("liste-abende");
     if (!S.geladen) la.innerHTML = '<p class="meta">Lade …</p>';
+    else if (!abende.length && online && ALT_API) la.innerHTML = `<form class="entscheid" id="form-import" autocomplete="off">
+        <p><strong>Eure bisherigen Daten liegen noch im Google Sheet.</strong> Gib den Gruppen-Code ein, den ihr dort benutzt habt, dann übernimmt die GintApp alle Abende, Gins und Bewertungen. Das ist nur einmal nötig.</p>
+        <label for="import-code">Gruppen-Code des Google Sheets<input id="import-code" type="password" required autocomplete="off" autocapitalize="off"></label>
+        <button class="primary" type="submit">Daten übernehmen</button>
+        <p class="meta" id="import-fehler" style="margin:0;color:var(--danger)" role="alert" hidden></p></form>`;
     else if (!abende.length) la.innerHTML = '<div class="empty"><strong>Noch kein Abend eingetragen.</strong><br>Lege unten mit „Neuer Abend“ euer erstes Tasting an, trage die mitgebrachten Gins ein und verteilt eure Sterne.</div>';
     else la.innerHTML = abende.map(a => {
       const w = ausw.get(a.id) || {};
@@ -844,6 +937,7 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   }
   $("fab").addEventListener("click", () => oeffneAbend(null));
   $("btn-neu-laden").addEventListener("click", () => server("ladeDaten", [], "Aktualisiert", true));
+  if (online) $("btn-neu-laden").hidden = true;          // mit Firebase aktualisiert sich alles von selbst
 
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-act]"); if (!b) return;
@@ -891,10 +985,9 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   $("form-abend").addEventListener("submit", async e => { e.preventDefault();
     const d = { datum:$("abend-datum").value, ort:$("abend-ort").value, notiz:$("abend-notiz").value.trim() };
     if (S.abendId) d.id = S.abendId; else d.gewinner = "";
-    const vorher = new Set(S.abende.map(a=>a.id));
+    if (!S.abendId) S.vorherAbende = new Set(S.abende.map(a=>a.id));   // neuen Abend gleich aufgeklappt zeigen
     await senden(e.target, "speichereAbend", d);
-    const neu = S.abende.find(a=>!vorher.has(a.id));             // neuen Abend gleich aufgeklappt zeigen
-    if (neu) { S.offen.add(neu.id); render(); }
+    neuenAbendAufklappen();
   });
   document.addEventListener("keydown", e => {
     const k = e.target.closest && e.target.closest('[data-act="auf"]');
@@ -919,14 +1012,19 @@ dialog form{display:flex;flex-direction:column;gap:12px}
     loeschen(e.target, n ? `Abend und ${n} ${n===1?"Gin":"Gins"} wirklich löschen?` : "Wirklich löschen?", "loescheAbend", S.abendId);
   });
 
-  // Einträge der anderen holen, wenn die App wieder in den Vordergrund kommt.
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && S.code && S.geladen && wartend===0 && !document.querySelector("dialog[open]")) server("ladeDaten", []);
-  });
-
-  if (!online) { $("hinweis").hidden = false; $("hinweis").textContent = "Vorschau ohne Google Sheet: In config.js fehlt noch die Web-App-Adresse. Einträge werden nicht gespeichert."; }
-  zeigeTab("abende"); render();
-  if (S.code) server("ladeDaten", []);
+  if (!online) { $("hinweis").hidden = false; $("hinweis").textContent = "Vorschau ohne Firebase: In config.js fehlen noch die Firebase-Angaben. Einträge werden nicht gespeichert."; }
+  zeigeTab("abende");
+  if (online) {
+    firebase.initializeApp(FB);
+    auth = firebase.auth(); db = firebase.firestore();
+    db.enablePersistence({ synchronizeTabs:true }).catch(() => {});   // letzter Stand liegt auf dem Handy, Start ist sofort da
+    auth.onAuthStateChanged(u => {
+      S.authBereit = true;
+      if (u) { S.code = "ok"; abonnieren(); } else { S.code = ""; abbestellen(); S.geladen = false; }
+      render();
+    });
+  } else { S.authBereit = true; }
+  render();
   // Service Worker: macht die App auf Android installierbar (Vollbild ohne Browserleiste)
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
