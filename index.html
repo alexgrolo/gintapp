@@ -29,7 +29,7 @@
 }
 @media (prefers-color-scheme: dark){ :root{
   --bg:#111016; --surface:#1A1822; --soft:#24212E; --ink:#FAFAFA; --muted:#A39FAE; --line:#2E2A3A;
-  --beere:#A49EF0; --beere-ink:#111016; --star:#A49EF0; --star-off:#3A3548; --danger:#FF7B72; --tile:#2A2635;
+  --beere:#A49EF0; --beere-ink:#111016; --star:#A49EF0; --star-off:#3A3548; --danger:#FF7B72; --tile:#E9E5F0;   /* Avatar-Kacheln bleiben auch im Dunkelmodus hell */
   color-scheme:dark } }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -927,6 +927,8 @@ dialog form{display:flex;flex-direction:column;gap:12px}
   if (!online) { $("hinweis").hidden = false; $("hinweis").textContent = "Vorschau ohne Google Sheet: In config.js fehlt noch die Web-App-Adresse. Einträge werden nicht gespeichert."; }
   zeigeTab("abende"); render();
   if (S.code) server("ladeDaten", []);
+  // Service Worker: macht die App auf Android installierbar (Vollbild ohne Browserleiste)
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
 </body>

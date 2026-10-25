@@ -1,4 +1,5 @@
 {
+  "id": "./",
   "name": "GintApp",
   "short_name": "GintApp",
   "description": "Unser Gin-Tasting: Abende, Gins, Sterne und Gewinner.",
@@ -25,5 +26,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "orientation": "portrait"
 }
